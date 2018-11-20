@@ -48,7 +48,6 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(MainActivity.this, "Clicked on " + list.get(position), Toast.LENGTH_LONG).show();
             }
         });
-
     }
 
     public class CustomAdapter extends ArrayAdapter<String> {
@@ -71,7 +70,7 @@ public class MainActivity extends AppCompatActivity {
 
         @NonNull
         @Override
-        public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
+        public View getView(final int position, @Nullable View convertView, @NonNull ViewGroup parent) {
 
 //            Do not put ANY loops in here! You will blow the entire program up!
 
@@ -82,6 +81,14 @@ public class MainActivity extends AppCompatActivity {
             Button button = adapterLayout.findViewById(R.id.id_button);
 
             textView.setText(list.get(position) + " " + position);
+
+            button.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    list.remove(position);
+                    notifyDataSetChanged();
+                }
+            });
 
             return adapterLayout;
         }
