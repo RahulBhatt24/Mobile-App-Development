@@ -18,7 +18,7 @@ import android.widget.TextView;
 public class MainActivity extends AppCompatActivity {
 
     TextView textView;
-    int currentstate;
+    int currentstate = 0;
 
     BroadcastReceiver broadcastReceiver;
     static String phoneNumber;
@@ -26,11 +26,13 @@ public class MainActivity extends AppCompatActivity {
     SmsManager manager = SmsManager.getDefault();
 
     String[][] aimessages = new String[][]{{"Hi this is Dominos, what would you like to order?","Hi what would you like to order?", "Hi this is Dominos how may I help you today?"},
-                                           {"Okay. What kind of pizza would you like?", "Sure, what pizza would you like to order?", "We have a 15% off deal for cheese pizza today."},
-                                           {"Great, what size would you like that in?", "Sounds good, do you want a small, medium, or large?", "Okay, do you want to take that in a small, medium, or large?"},
-                                           {"Okay your total comes out to $7.99.", "Okay your total comes to $9.99.", "Okay your total comes out to $11.99"},
-                                           {"Can I have your name and address please?", "Alright, what is your name and address?", "Okay, can I have your name and address?"},
-                                           {"Awesome, we are getting your order ready.", "Okay, your order should be delivered in 15 minutes", "Great, your order will arrive in about 10 minutes"}};
+            {"Okay. What kind of pizza would you like?", "Sure, what pizza would you like to order?", "We have a 15% off deal for cheese pizza today."},
+            {"Great, what size would you like that in?", "Sounds good, do you want a small, medium, or large?", "Okay, do you want to take that in a small, medium, or large?"},
+            {"Okay your total comes out to $7.99.", "Okay your total comes to $9.99.", "Okay your total comes out to $11.99"},
+            {"Can I have your name and address please?", "Alright, what is your name and address?", "Okay, can I have your name and address?"},
+            {"Awesome, we are getting your order ready.", "Okay, your order should be delivered in 15 minutes", "Great, your order will arrive in about 10 minutes"}};
+
+    String[] stateName = new String[]{"Greeting State", "Asking State", "Ordering State", "Cost State", "Address State", "Ending State"};
 
     @Override
     protected void onResume() {
@@ -83,7 +85,7 @@ public class MainActivity extends AppCompatActivity {
 
                         String message = messages[i].getMessageBody();
                         phoneNumber = messages[i].getOriginatingAddress();
-                        textView.setText(message);
+                        textView.setText(stateName[currentstate]);
                         runTextingAi(message);
                     }
                 }
@@ -101,19 +103,19 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void runTextingAi(String message) {
-        if (currentstate == 0 && (message.toLowerCase().equals("hey") || message.toLowerCase().equals("hello") || message.toLowerCase().equals("hi"))) {
+        if (currentstate == 0 && (message.toLowerCase().contains("hey") || message.toLowerCase().contains("hello") || message.toLowerCase().contains("hi"))) {
             sendText(aimessages[currentstate][(int)(Math.random())+2], 5000);
             currentstate++;
-        } else if (currentstate == 1 && (message.toLowerCase().equals("i would like to order a pizza") || message.toLowerCase().equals("i would like to order some food") || message.toLowerCase().equals("pizza"))) {
+        } else if (currentstate == 1 && (message.toLowerCase().contains("pizza") || message.toLowerCase().contains("food") || message.toLowerCase().contains("order"))) {
             sendText(aimessages[currentstate][(int)(Math.random()+2)], 5000);
             currentstate++;
-        } else if (currentstate == 2 && (message.toLowerCase().equals("i'll take that") || message.toLowerCase().equals("i want a cheese pizza") || message.toLowerCase().equals("i would like a pepperoni"))) {
+        } else if (currentstate == 2 && (message.toLowerCase().contains("pepperoni") || message.toLowerCase().contains("cheese") || message.toLowerCase().contains("pineapple"))) {
             sendText(aimessages[currentstate][(int)(Math.random()+2)], 5000);
             currentstate++;
-        } else if (currentstate == 3 && (message.toLowerCase().equals("small") || message.toLowerCase().equals("medium") || message.toLowerCase().equals("large"))) {
+        } else if (currentstate == 3 && (message.toLowerCase().contains("small") || message.toLowerCase().contains("medium") || message.toLowerCase().contains("large"))) {
             sendText(aimessages[currentstate][(int)(Math.random()+2)], 5000);
             currentstate++;
-        } else if (currentstate == 4 && (message.toLowerCase().equals("okay") || message.toLowerCase().equals("sounds good") || message.toLowerCase().equals("alright"))) {
+        } else if (currentstate == 4 && (message.toLowerCase().contains("okay") || message.toLowerCase().contains("sounds good") || message.toLowerCase().contains("alright"))) {
             sendText(aimessages[currentstate][(int)(Math.random()+2)], 5000);
             currentstate++;
         } else if (currentstate == 5) {
