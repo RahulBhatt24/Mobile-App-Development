@@ -12,6 +12,7 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.media.MediaPlayer;
 import android.support.constraint.ConstraintLayout;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
@@ -22,6 +23,7 @@ import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
+import java.io.IOException;
 import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity {
@@ -66,12 +68,16 @@ public class MainActivity extends AppCompatActivity {
         int x;
         int y;
         int time = 99;
-        int realtime = 5;
+        int realtime = 30;
+        int bulletcounter = 0;
         boolean game = false;
         Canvas canvas;
         ArrayList<Obstacle> obstacles = new ArrayList<>();
         String sensorOutput="";
         Paint paintProperty;
+
+        MediaPlayer bullethit;
+        MediaPlayer backgroundmusic;
 
         int screenWidth;
         int screenHeight;
@@ -88,7 +94,9 @@ public class MainActivity extends AppCompatActivity {
             screenHeight=sizeOfScreen.y;
             x = (screenWidth/2) - plane.getWidth()/2;
             y = (2*screenHeight/3) - plane.getHeight();
-            
+
+            bullethit = MediaPlayer.create(MainActivity.this, R.raw.bullethit);
+            backgroundmusic = MediaPlayer.create(MainActivity.this, R.raw.backgroundmusic);
             SensorManager sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
             Sensor accelerometerSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
             sensorManager.registerListener(this,accelerometerSensor,sensorManager.SENSOR_DELAY_NORMAL);
@@ -100,7 +108,7 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public boolean onTouchEvent(MotionEvent event) {
-            if (game == false &&score == -1) {
+            if (game == false && score == -1) {
                 score = 0;
                 game = true;
             } else if (game == false && score > -1) {
@@ -108,12 +116,16 @@ public class MainActivity extends AppCompatActivity {
                 x = (screenWidth/2) - plane.getWidth()/2;
                 y = (2*screenHeight/3) - plane.getHeight();
                 score = 0;
+                bulletcounter = 0;
                 time = 99;
                 realtime = 30;
                 game = true;
             }
 
-            obstacles.add(new Bullet(x + plane.getWidth()/2, y-10));
+            if (bulletcounter < 3) {
+                obstacles.add(new Bullet(x + plane.getWidth() / 2, y - 10));
+                bulletcounter++;
+            }
             return super.onTouchEvent(event);
         }
 
@@ -126,24 +138,30 @@ public class MainActivity extends AppCompatActivity {
                     continue;
                 canvas= holder.lockCanvas();
 
-                if (realtime <= 0) {
+                if (realtime < 1) {
                     game = false;
+                }
+
+                if (!backgroundmusic.isPlaying()) {
+                    backgroundmusic.start();
                 }
 
                 if (game == false && score == -1) {
                     canvas.drawColor(Color.BLUE);
                     paintProperty.setColor(Color.WHITE);
+                    paintProperty.setTextSize(128);
+                    canvas.drawText("River Raid!",screenWidth/4+40, screenHeight/4, paintProperty);
                     paintProperty.setTextSize(64);
-                    canvas.drawText("River Raid!",screenWidth/3, screenHeight/4, paintProperty);
-                    paintProperty.setTextSize(32);
-                    canvas.drawText("Click anywhere to play", screenWidth/4, screenHeight/2, paintProperty);
-                } else if (game == false && score > -1) {
-                    score-=100;
-                    paintProperty.setTextSize(64);
+                    canvas.drawText("Click anywhere to play", screenWidth/4+30, screenHeight/2, paintProperty);
+                } else if (realtime < 1 || game == false && score > -1) {
+                    game = false;
+                    realtime = 0;
+                    paintProperty.setTextSize(128);
                     canvas.drawColor(Color.BLUE);
-                    canvas.drawText("Game Over", screenWidth/4, screenHeight/3, paintProperty);
-                    canvas.drawText("Your score was:" + score, screenWidth/8, screenHeight/2, paintProperty);
-                } else {
+                    canvas.drawText("Game Over", screenWidth/4 + 20, screenHeight/3, paintProperty);
+                    paintProperty.setTextSize(64);
+                    canvas.drawText("Your score was: " + score, screenWidth/4+40, screenHeight/2, paintProperty);
+                } else if (realtime > 0 && game && score > -1) {
 
                     canvas.drawColor(Color.BLUE);
 
@@ -156,7 +174,7 @@ public class MainActivity extends AppCompatActivity {
 
                     if (time == 100) {
                         time = 0;
-                        int obstacle = (int) (Math.random() * 3);
+                        int obstacle = (int) (Math.random() * 4);
                         switch (obstacle) {
                             case 0:
                                 obstacles.add(new Ship((int) (Math.random() * (screenWidth - 250)) + 50, 0));
@@ -166,6 +184,9 @@ public class MainActivity extends AppCompatActivity {
                                 break;
                             case 2:
                                 obstacles.add(new Airplane((int) (Math.random() * (screenWidth - 100)) + 50, 0));
+                                break;
+                            case 3:
+                                obstacles.add(new Fuel((int)(Math.random() * (screenWidth - 100)) + 50, 0));
                                 break;
                         }
                     }
@@ -202,6 +223,20 @@ public class MainActivity extends AppCompatActivity {
                                                     obstacles.get(j).setImage(R.drawable.brokenairplane);
                                                     score += 125;
                                                     break;
+                                                case R.drawable.fuel:
+                                                    obstacles.get(j).setImage(R.drawable.brokenplane);
+                                                    break;
+                                            }
+                                            if (bullethit.isPlaying()) {
+                                                bullethit.stop();
+                                                try {
+                                                    bullethit.prepare();
+                                                } catch (IOException e) {
+                                                    e.printStackTrace();
+                                                }
+                                                bullethit.start();
+                                            } else {
+                                                bullethit.start();
                                             }
                                         }
                                     }
@@ -221,17 +256,34 @@ public class MainActivity extends AppCompatActivity {
                             if (obstacles.get(i).getY() > screenHeight) {
                                 score += 25;
                             }
+                            if (obstacles.get(i).getY() <= 0) {
+                                bulletcounter--;
+                            }
                             obstacles.remove(i);
                             if (i > 0) {
                                 i--;
                             }
 
                         }
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                //(obstacles.get(i).getX() > x && obstacles.get(i).getX() + obstacle.getWidth()/2 < x + plane.getWidth()
+                        if (obstacles.size() > 0 && obstacles.get(i).getImage() != R.drawable.brokenplane && obstacles.get(i).getImage() != R.drawable.brokenship && obstacles.get(i).getImage() != R.drawable.brokenhelicopter && obstacles.get(i).getImage() != R.drawable.brokenairplane && obstacles.get(i).getImage() != R.drawable.bullet && obstacles.get(i).getY() > y && obstacles.get(i).getY()+obstacle.getHeight() < y + plane.getHeight() && (obstacles.get(i).getX() > x - obstacle.getWidth()) && obstacles.get(i).getX() < x + plane.getWidth()) {
+                            if (obstacles.get(i).getImage() == R.drawable.fuel) {
+                                realtime+=5;
+                                Log.d(TAG, "run: FUEL DETECTED");
+                                if (realtime >= 30) {
+                                    realtime = 30;
+                                }
+                                obstacles.remove(i);
+                                if (i > 0) {
+                                    i--;
+                                }
+                            } else {
+                                plane = BitmapFactory.decodeResource(getResources(), R.drawable.brokenplane);
+                                canvas.drawBitmap(plane, x, y, null);
+                                game = false;
+                                Log.d(TAG, "run: COLLISION DETECTED");
 
-                        if (obstacles.size() > 0 && obstacles.get(i).getImage() != R.drawable.brokenplane && obstacles.get(i).getImage() != R.drawable.brokenship && obstacles.get(i).getImage() != R.drawable.brokenhelicopter && obstacles.get(i).getImage() != R.drawable.brokenairplane && obstacles.get(i).getImage() != R.drawable.bullet && obstacles.get(i).getY() > y && obstacles.get(i).getX() > x && obstacles.get(i).getX() < x + plane.getWidth()) {
-                            plane = BitmapFactory.decodeResource(getResources(), R.drawable.brokenplane);
-                            canvas.drawBitmap(plane, x, y, null);
-                            game = false;
+                            }
                         } else {
                             canvas.drawBitmap(plane, x, y, null);
                         }
