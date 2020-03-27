@@ -1,4 +1,7 @@
-package com.example.saicm.textingai;
+package com.example.chatbot2;
+
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
 
 import android.Manifest;
 import android.content.BroadcastReceiver;
@@ -6,40 +9,40 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
-import android.os.Handler;
-import android.support.v4.app.ActivityCompat;
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.os.Handler;
+import android.provider.Telephony;
 import android.telephony.SmsManager;
 import android.telephony.SmsMessage;
+import android.util.Log;
 import android.widget.TextView;
 
+import java.lang.reflect.Array;
+import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity {
 
-    TextView textView;
-    int currentstate = 0;
-
     BroadcastReceiver broadcastReceiver;
-    static String phoneNumber;
+    Bundle bundle;
+    Object[] pdus;
     Handler handler = new Handler();
-    SmsManager manager = SmsManager.getDefault();
-
-    String[][] aimessages = new String[][]{{"Hi this is Dominos, what would you like to order?","Hi what would you like to order?", "Hi this is Dominos how may I help you today?"},
-            {"Okay. What kind of pizza would you like?", "Sure, what pizza would you like to order?", "We have a 15% off deal for cheese pizza today."},
-            {"Great, what size would you like that in?", "Sounds good, do you want a small, medium, or large?", "Okay, do you want to take that in a small, medium, or large?"},
-            {"Okay your total comes out to $7.99.", "Okay your total comes to $9.99.", "Okay your total comes out to $11.99"},
-            {"Can I have your name and address please?", "Alright, what is your name and address?", "Okay, can I have your name and address?"},
-            {"Awesome, we are getting your order ready.", "Okay, your order should be delivered in 15 minutes", "Great, your order will arrive in about 10 minutes"}};
-
-    String[] stateName = new String[]{"Greeting State", "Asking State", "Ordering State", "Cost State", "Address State", "Ending State"};
+    TextView textView;
+    SmsMessage[] array;
+    String phoneNumber;
+    String messageReceived;
+    SmsManager smsManager=SmsManager.getDefault();
+    int state=1;
+    String[] greetingMessages = {"Welcome to Chipotle! Do you want a burrito or a bowl?", "Would you like a burrito or a bowl?", "Hi! Are you having a burrito or a bowl today?", "We offer burritos or bowls, which would you like?"};
+    String[] toppingMessages = {"And what would you like on it?", "What would you like to add?", "Can you please select what else you want", "We have a deal on unlimited ingredients, please select what you want!"};
+    String[] extraMessages = {"Can I interest you in guacamole for an extra $2?", "Would you like lemonade for an extra $2?", "Do you want a soda for an extra $2?", "Can I interest you in a drink for an extra $2?"};
+    String[] paymentMessagesNo = {"Your total comes out to $7.13. Please come again!", "It's $7.13, see ya later!", "Thanks for coming!"};
+    String[] paymentMessagesYes = {"Your total comes out to $9.13. Please come again!", "It's $9.13, see ya later!", "Thanks for coming!"};
+    String[] byeMessages = {"Goodbye!", "See ya!", "Later!", "Bye!"};
 
     @Override
     protected void onResume() {
         super.onResume();
-
-        IntentFilter intentFilter = new IntentFilter();
-        intentFilter.addAction("android.provider.Telephony.SMS_RECEIVED");
+        IntentFilter intentFilter = new IntentFilter("android.provider.Telephony.SMS_RECEIVED");
         registerReceiver(broadcastReceiver, intentFilter);
     }
 
@@ -53,8 +56,9 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        textView=findViewById(R.id.id_textview);
 
-        textView = findViewById(R.id.textView);
+        textView.setText("GREETING STATE");
 
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.RECEIVE_SMS) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECEIVE_SMS}, 0);
@@ -68,62 +72,78 @@ public class MainActivity extends AppCompatActivity {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.READ_SMS}, 0);
         }
 
+
         broadcastReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
-                Bundle bundle = intent.getExtras();
-                SmsMessage [] messages = null;
+                Log.d("TAG", "POGGERS");
+                array = null;
+                bundle = intent.getExtras();
 
                 if (bundle != null) {
+                    pdus = (Object[]) bundle.get("pdus");
 
-                    Object [] pdus = (Object[]) bundle.get("pdus");
+                    array = new SmsMessage[pdus.length];
 
-                    messages = new SmsMessage[pdus.length];
-
-                    for (int i = 0; i < messages.length; i++) {
-                        messages[i] = SmsMessage.createFromPdu((byte[]) pdus[i], (String) bundle.get("format"));
-
-                        String message = messages[i].getMessageBody();
-                        phoneNumber = messages[i].getOriginatingAddress();
-                        textView.setText(stateName[currentstate]);
-                        runTextingAi(message);
+                    for (int i = 0; i < pdus.length; i++) {
+                        byte[] a = (byte[]) pdus[i];
+                        SmsMessage smsMessage = SmsMessage.createFromPdu(a, bundle.getString("format"));
+                        array[i] = smsMessage;
+                        messageReceived=array[i].getMessageBody();
+                        phoneNumber=array[i].getOriginatingAddress();
+                        Log.d("TAG", messageReceived);
+                        Log.d("TAG", phoneNumber);
+                        runAi(messageReceived);
                     }
+
                 }
             }
         };
     }
 
-    public void sendText(final String message, int time) {
+
+    public void sendText(final String messageSend) {
         handler.postDelayed(new Runnable() {
             @Override
             public void run() {
-                manager.sendTextMessage(phoneNumber, null, message, null, null);
+                smsManager.sendTextMessage(phoneNumber, null, messageSend, null, null);
             }
-        }, time);
+        }, 3000);
     }
 
-    public void runTextingAi(String message) {
-        if (currentstate == 0 && (message.toLowerCase().contains("hey") || message.toLowerCase().contains("hello") || message.toLowerCase().contains("hi"))) {
-            sendText(aimessages[currentstate][(int)(Math.random())+2], 5000);
-            currentstate++;
-        } else if (currentstate == 1 && (message.toLowerCase().contains("pizza") || message.toLowerCase().contains("food") || message.toLowerCase().contains("order"))) {
-            sendText(aimessages[currentstate][(int)(Math.random()+2)], 5000);
-            currentstate++;
-        } else if (currentstate == 2 && (message.toLowerCase().contains("pepperoni") || message.toLowerCase().contains("cheese") || message.toLowerCase().contains("pineapple"))) {
-            sendText(aimessages[currentstate][(int)(Math.random()+2)], 5000);
-            currentstate++;
-        } else if (currentstate == 3 && (message.toLowerCase().contains("small") || message.toLowerCase().contains("medium") || message.toLowerCase().contains("large"))) {
-            sendText(aimessages[currentstate][(int)(Math.random()+2)], 5000);
-            currentstate++;
-        } else if (currentstate == 4 && (message.toLowerCase().contains("okay") || message.toLowerCase().contains("sounds good") || message.toLowerCase().contains("alright"))) {
-            sendText(aimessages[currentstate][(int)(Math.random()+2)], 5000);
-            currentstate++;
-        } else if (currentstate == 5) {
-            sendText(aimessages[currentstate][(int)(Math.random()+2)], 5000);
-            currentstate++;
-        } else {
-            sendText("Sorry, I don't understand that.", 5000);
+    public void runAi(String message) {
+        if (state == 1 && (message.toLowerCase().contains("hi") || message.toLowerCase().contains("hello")) || message.toLowerCase().contains("hey")) {
+            sendText(greetingMessages[(int)(Math.random()*4)]);
+            textView.setText("GREETING STATE");
+            state++;
         }
-
+        else if (state == 2 && (message.toLowerCase().contains("burrito") || message.toLowerCase().contains("bowl"))) {
+            sendText(toppingMessages[(int)(Math.random()*4)]);
+            textView.setText("ASKS FOR INGREDIENTS STATE");
+            state++;
+        }
+        else if (state == 3 && (message.toLowerCase().contains("chicken") || message.toLowerCase().contains("rice")) || message.toLowerCase().contains("beans") || message.toLowerCase().contains("corn") || message.toLowerCase().contains("cheese")) {
+            sendText(extraMessages[(int)(Math.random()*4)]);
+            textView.setText("ASKS FOR EXTRAS STATE");
+            state++;
+        }
+        else if (state == 4 && (message.toLowerCase().contains("yes"))) {
+            sendText(paymentMessagesYes[(int)(Math.random()*4)]);
+            textView.setText("PAYMENT STATE");
+            state++;
+        }
+        else if (state == 4 && (message.toLowerCase().contains("no"))) {
+            sendText(paymentMessagesNo[(int)(Math.random()*4)]);
+            textView.setText("PAYMENT STATE");
+            state++;
+        }
+        else if (state == 5 && (message.toLowerCase().contains("bye") || message.toLowerCase().contains("later"))) {
+            sendText(byeMessages[(int)(Math.random()*4)]);
+            textView.setText("GOODBYE STATE");
+            state++;
+        }
+        else {
+            sendText("Sorry, I don't understand that.");
+        }
     }
 }
